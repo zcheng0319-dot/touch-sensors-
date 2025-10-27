@@ -8,15 +8,14 @@
 #include "arduino_secrets.h" 
 #include <utility/wifi_drv.h>   // library to drive to RGB LED on the MKR1010
 
-const int FSR_PIN = A0;  //
-const int TH = 220;      // 
+const int TOUCH_PIN = A0;
 
 /**** please enter your sensitive data in the Secret tab/arduino_secrets.h
 **** using format below*/
 #define SECRET_SSID "CE-Hub-Student"
 #define SECRET_PASS "casa-ce-gagarin-public-service"
 #define SECRET_MQTTUSER "student"
-#define SECRET_MQTTPASS "ce2021-mqtt-forget-whale";
+#define SECRET_MQTTPASS "ce2021-mqtt-forget-whale"
 
 const char* ssid          = SECRET_SSID;
 const char* password      = SECRET_PASS;
@@ -69,10 +68,10 @@ void setup() {
   
   Serial.println("Set-up complete");
   pinMode(LED_BUILTIN, OUTPUT);
+
 }
  
 void loop() {
-  // Reconnect if necessary
   if (!mqttClient.connected()) {
     reconnectMQTT();
   }
@@ -83,29 +82,30 @@ void loop() {
   // keep mqtt alive
   mqttClient.loop();
 
-static bool lastPressed = false;   //
-  int v = analogRead(FSR_PIN);
-  bool pressed = (v >220 );           // 
-
-  // 
-  Serial.print("FSR: "); Serial.print(v);
-  Serial.print("  pressed: "); Serial.println(pressed ? "YES" : "NO");
+  static bool lastPressed = false;   
+  int raw = analogRead(TOUCH_PIN);  
+  bool pressed = (raw > 300);           
+ 
+  Serial.print("TOUCH raw: ");
+  Serial.print(raw);
+  Serial.print("  pressed: ");
+  Serial.println(pressed ? "YES" : "NO");
 
   //Only send once when the status changes.
   if (pressed != lastPressed) {
     lastPressed = pressed;
 
     if (pressed) {
-      //Press: Fixed purple color for the entire lamp (which makes it easier to visually detect any changes)
+    
       for (int p=0; p<num_leds; p++){
-        RGBpayload[p*3+0] = 255;  // R
-        RGBpayload[p*3+1] = 0;    // G
-        RGBpayload[p*3+2] = 255;  // B
+        RGBpayload[p*3+0] = 255;  
+        RGBpayload[p*3+1] = 60;   
+        RGBpayload[p*3+2] = 0;  
       }
       if (mqttClient.connected()) mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
-      Serial.println("SENT: PURPLE");
+      Serial.println("SENT: orange");
     } else {
-      // 
+
       for (int p=0; p<num_leds; p++){
         RGBpayload[p*3+0] = 0;
         RGBpayload[p*3+1] = 0;
@@ -115,21 +115,11 @@ static bool lastPressed = false;   //
       Serial.println("SENT: OFF");
     }
 
-    // 
     digitalWrite(LED_BUILTIN, pressed ? HIGH : LOW);
   }
 
-  delay(40);  // 
+  delay(40); 
   
-  /*
-  for(int n=0; n<num_leds; n++){
-    send_all_off();
-    delay(100);
-    send_RGB_to_pixel(250,0,250,n);
-    delay(200);
-  }
-  delay(1000);
-  */
 }
 
 // Function to update the R, G, B values of a single LED pixel
