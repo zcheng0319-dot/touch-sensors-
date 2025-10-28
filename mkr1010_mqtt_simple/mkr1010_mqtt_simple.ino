@@ -201,7 +201,7 @@ void hueToRGB(int hue, byte &r, byte &g, byte &b) {
 // breathing effect: blue > purple > pink > blue
 void breathingEffect() {
   unsigned long now = millis();
-  if (now - lastUpdate > 800) { // update color every ~ 0.8s
+  if (now - lastUpdate > 200) { // update color every ~ 0.2s
     lastUpdate = now;
 
     // Cycle the hue within the range of 200 to 320 degrees

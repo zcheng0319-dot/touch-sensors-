@@ -77,4 +77,5 @@ void fadeToColor(byte r, byte g, byte b, int steps, int delayMs) {
   }
 
   delay(delayMs);
+ }
 }
