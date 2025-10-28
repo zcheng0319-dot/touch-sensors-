@@ -59,3 +59,22 @@ void reconnectMQTT() {
   LedGreen();
 }
 
+// fade from target color down to black
+void fadeToColor(byte r, byte g, byte b, int steps, int delayMs) {
+  for (int i = 0; i <= steps; i++) {
+  byte rr = (byte)(r * (1 - i / (float)steps));
+  byte gg = (byte)(g * (1 - i / (float)steps));
+  byte bb = (byte)(b * (1 - i / (float)steps));
+
+  for (int p = 0; p < num_leds; p++) {
+    RGBpayload[p*3+0] = rr;
+    RGBpayload[p*3+1] = gg;
+    RGBpayload[p*3+2] = bb;
+  }
+
+  if (mqttClient.connected()) {
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+  }
+
+  delay(delayMs);
+}

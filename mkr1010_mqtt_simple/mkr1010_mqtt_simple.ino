@@ -28,6 +28,11 @@ const int mqtt_port       = 1884;
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
+// breathing effect control
+bool breathing = false;           
+unsigned long lastUpdate = 0;    
+int hue = 0;                      
+
 // Make sure to update your lightid value below with the one you have been allocated
 String lightId = "30"; // the topic id number or user number being used.
 
@@ -79,47 +84,32 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED){
     startWifi();
   }
-  // keep mqtt alive
   mqttClient.loop();
 
   static bool lastPressed = false;   
   int raw = analogRead(TOUCH_PIN);  
   bool pressed = (raw > 300);           
- 
-  Serial.print("TOUCH raw: ");
-  Serial.print(raw);
-  Serial.print("  pressed: ");
-  Serial.println(pressed ? "YES" : "NO");
 
-  //Only send once when the status changes.
+  // detect changes in touch status
   if (pressed != lastPressed) {
     lastPressed = pressed;
 
     if (pressed) {
-    
-      for (int p=0; p<num_leds; p++){
-        RGBpayload[p*3+0] = 255;  
-        RGBpayload[p*3+1] = 60;   
-        RGBpayload[p*3+2] = 0;  
-      }
-      if (mqttClient.connected()) mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
-      Serial.println("SENT: orange");
+      breathing = true;
+      Serial.println("TOUCH PRESSED -> start breathing");
     } else {
-
-      for (int p=0; p<num_leds; p++){
-        RGBpayload[p*3+0] = 0;
-        RGBpayload[p*3+1] = 0;
-        RGBpayload[p*3+2] = 0;
-      }
-      if (mqttClient.connected()) mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
-      Serial.println("SENT: OFF");
+      breathing = false;
+      fadeToColor(0, 0, 0, 20, 20);  // slowly fade out after release
+      Serial.println("TOUCH RELEASED -> fade out");
     }
-
-    digitalWrite(LED_BUILTIN, pressed ? HIGH : LOW);
   }
 
-  delay(40); 
-  
+  // if breathing mode on, run effect
+  if (breathing) {
+    breathingEffect();
+  }
+
+  delay(20);
 }
 
 // Function to update the R, G, B values of a single LED pixel
@@ -164,7 +154,7 @@ void send_all_random() {
   if (mqttClient.connected()) {
     // Fill the byte array with the specified RGB color pattern
     for(int pixel=0; pixel < num_leds; pixel++){
-      RGBpayload[pixel * 3 + 0] = (byte)random(50,256); // Red - 256 is exclusive, so it goes up to 255
+      RGBpayload[pixel * 3 + 0] = (byte)random(50,256); // Red 
       RGBpayload[pixel * 3 + 1] = (byte)random(50,256); // Green
       RGBpayload[pixel * 3 + 2] = (byte)random(50,256); // Blue
     }
@@ -188,4 +178,61 @@ void printMacAddress(byte mac[]) {
     }
   }
   Serial.println();
+}
+
+// hue to rgb, for blue-purple-pink loop
+void hueToRGB(int hue, byte &r, byte &g, byte &b) {
+  float h = (hue % 360) / 60.0;
+  float x = 1 - fabs(fmod(h, 2) - 1);
+  float R, G, B;
+
+  if (h < 1) { R = 1; G = x; B = 0; }
+  else if (h < 2) { R = x; G = 1; B = 0; }
+  else if (h < 3) { R = 0; G = 1; B = x; }
+  else if (h < 4) { R = 0; G = x; B = 1; }
+  else if (h < 5) { R = x; G = 0; B = 1; }
+  else { R = 1; G = 0; B = x; }
+
+  r = (byte)(R * 255);
+  g = (byte)(G * 255);
+  b = (byte)(B * 255);
+}
+
+// breathing effect: blue > purple > pink > blue
+void breathingEffect() {
+  unsigned long now = millis();
+  if (now - lastUpdate > 800) { // update color every ~ 0.8s
+    lastUpdate = now;
+
+    // Cycle the hue within the range of 200 to 320 degrees
+    hue += 3;
+    if (hue > 320) hue = 200;
+
+    byte r, g, b;
+    hueToRGB(hue, r, g, b);
+
+    //  breathing brightness curve (sin shape)
+    float brightness = (sin(millis() / 1000.0 * 3.14159) + 1.0) / 2.0; // 0~1
+    r = (byte)(r * brightness);
+    g = (byte)(g * brightness);
+    b = (byte)(b * brightness);
+
+    // Update the entire light strip
+    for (int p = 0; p < num_leds; p++) {
+      RGBpayload[p*3+0] = r;
+      RGBpayload[p*3+1] = g;
+      RGBpayload[p*3+2] = b;
+    }
+
+    if (mqttClient.connected()) {
+      mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+    }
+
+    Serial.print("breathing hue=");
+    Serial.print(hue);
+    Serial.print(" RGB=");
+    Serial.print(r); Serial.print(",");
+    Serial.print(g); Serial.print(",");
+    Serial.println(b);
+  }
 }
