@@ -16,3 +16,4 @@ This small modification makes the interaction feel more natural and expressive.
 ## Reflection
 Through this project, I learned how to combine **sensor input**, **MQTT communication**, and **visual feedback** into a connected system.  
 It also helped me understand how subtle interaction design can change the emotional tone of a device, making technology feel more human.
+![63de96f03a2d0866e73c5d97f6d55f6f](https://github.com/user-attachments/assets/2c2e69e4-0114-4211-98dc-55460d7ce003)
